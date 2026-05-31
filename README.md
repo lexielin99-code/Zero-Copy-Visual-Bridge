@@ -1,39 +1,64 @@
 # Zero-Copy Visual Bridge
 
-**在浏览器里直接改稿、贴便利贴，Claude 自动把你的修改同步到 HTML 源码。全程不用复制粘贴。**
+**不用写需求文档，不用截图标注，不用复制粘贴。直接在页面上改文案、贴便利贴说感受，Claude 自动看懂并更新源码。**
 
-A zero-copy design review skill for Claude Code. Edit copy and drop sticky notes directly in your browser — then just tell Claude *"反馈好了"* and every change gets applied to your source files automatically.
+Point at what you don't like, say how it *feels* — Claude translates your vibe into working code.
+
+---
+
+## The Core Idea
+
+You open a prototype in the browser and immediately sense something's off. But describing it in words, writing a ticket, waiting for a fix — that whole loop is friction.
+
+Zero-Copy Visual Bridge collapses it:
+
+1. **Click directly on the element** that feels wrong
+2. **Drop a sticky note** — write anything: *"太冷了"*, *"不够高级"*, *"这个间距很奇怪"*, *"字太小用户根本看不到"*
+3. **Tell Claude: "反馈好了"**
+4. Claude reads your sticky notes, understands the intent, and edits the source code
+
+No screenshots. No copy-pasting. No translating feelings into dev-speak yourself.
 
 ---
 
 ## Core Features / 核心亮点
 
-**🎯 Zero-Copy Workflow (零复制闭环)**
-Say goodbye to manual copy-pasting. Edit text or drop sticky notes directly on your UI, say "Feedback done" to your AI agent, and watch the source code update automatically.
-告别繁琐的截图和复制粘贴。直接在网页上改文案、贴便利贴，对 AI 说一句"反馈好了"，源码自动更新。
+**🎯 Vibe-to-Code (感受即指令)**
+Write what you *feel*, not what you want coded. Drop a sticky note saying *"这里太压抑了"* or *"感觉有点廉价"* — Claude interprets the intent and decides how to fix it. Your design intuition is the instruction.
+直接说"太冷""感觉不够高级"，Claude 读懂你的直觉感受，自己判断该改什么、怎么改。
+
+**✏️ Inline Text Editing (所见即所得改稿)**
+Click any text element to edit it directly in the browser — what you type becomes the new source. No switching tabs, no find-and-replace.
+点击文字直接改，改完即存。不用在浏览器和编辑器之间反复切换。
 
 **🧹 Zero DOM Pollution (零代码污染)**
-Activated only when you need it via Chrome extension. It works entirely in memory and leaves absolutely no trace in your original HTML/CSS files.
-按需唤醒，用完即焚。仅在内存中运行，绝不向你的原始项目代码中强塞任何脏数据。
+The tool lives entirely in memory. Activate when needed, vanish when done — nothing injected into your source files.
+按需唤醒，用完即焚。不向源码写入任何痕迹。
 
 **🪶 Ultra-Lightweight (极致轻量)**
-Built with pure Vanilla JS and Node.js built-in modules. No React, no Express, no npm install bloat. Seamlessly bypasses file:// CORS restrictions.
-纯原生 JS + Node.js 原生模块构建。无需安装臃肿的依赖包，优雅解决本地 file:// 协议跨域限制。
+Pure Vanilla JS + Node.js built-ins. No React, no Express, no `npm install`. Bypasses `file://` CORS out of the box.
+纯原生 JS，无依赖，开箱即用。
 
-**🤖 Agent-Ready Architecture (为 AI 而生)**
-Translates visual interactions into a structured, machine-readable JSON format (`.design_feedback.json`) combined with precise CSS selectors, acting as a perfect bridge for LLMs.
-将人类的视觉反馈自动转化为 AI 极易理解的结构化 JSON 数据与精准的 CSS 选择器，填补视觉与代码的鸿沟。
+**🤖 Agent-Ready (为 AI 而生)**
+Every annotation is saved as structured JSON with a precise CSS selector — Claude always knows exactly *which element* your feedback refers to.
+每条反馈都绑定精准的 CSS 选择器，Claude 永远知道你在说哪个元素。
 
 ---
 
-## How it works
+## How It Works
 
 ```
-浏览器审稿（Chrome 插件）
-    ↓ 点击「保存反馈」
-本地接收端（自动启动）→ .design_feedback.json
-    ↓ 你说「反馈好了」
-Claude 读取文件 → 修改 HTML / CSS 源码 → 汇报结果
+① Open your HTML in Chrome, click the extension → 开始审稿
+
+② On the page:
+   · Click any text to edit it inline
+   · Switch to 备注 mode → click any element → drop a sticky note
+     ("太工程师了" / "按钮没有点击欲望" / "配色让人感觉不信任这个产品")
+
+③ Click 保存反馈 → feedback saved to .design_feedback.json
+
+④ Tell Claude: 反馈好了
+   → Claude reads the file → patches source code → reports back
 ```
 
 ---
@@ -50,16 +75,16 @@ Claude 读取文件 → 修改 HTML / CSS 源码 → 汇报结果
 
 ### 1. Install the skill
 
-Download `visual-feedback.skill` and install it in Claude Code:
+Download `zero-copy-visual-bridge.skill` from Releases:
 
 ```bash
-claude skill install visual-feedback.skill
+claude skill install zero-copy-visual-bridge.skill
 ```
 
-Or copy the `visual-feedback/` folder into your Claude skills directory:
+Or copy the folder directly into your skills directory:
 
 ```
-~/.claude/skills/visual-feedback/
+~/.claude/skills/zero-copy-visual-bridge/
 ```
 
 ### 2. Load the Chrome extension
@@ -69,47 +94,59 @@ Or copy the `visual-feedback/` folder into your Claude skills directory:
 3. Click **Load unpacked** → select the `extension/` folder inside this skill
 4. In the extension details, enable **Allow access to file URLs**
 
-That's it. The extension icon appears in your toolbar.
+The extension icon appears in your toolbar.
 
 ---
 
 ## Usage
 
-### Start a review session
+### Start a review
 
-1. Open your HTML file in Chrome (double-click to open as `file://`)
-2. Click the **Visual Feedback** extension icon → **开始审稿**
-3. A control panel appears in the top-right corner of the page
+1. Open your HTML file in Chrome
+2. Click the **Zero-Copy Visual Bridge** icon → **开始审稿**
+3. The control panel appears top-right
 
-**Edit copy** — hover to highlight any element, click to edit text inline
+**Edit text** — hover any element to highlight, click to edit inline
 
-**Add sticky notes** — switch to 备注 mode, click any element to drop a sticky note
+**Drop sticky notes** — switch to 备注 mode, click any element to pin a note
 
-4. When done, click **保存反馈** in the panel
+> What to write in sticky notes: anything that captures your reaction.
+> *"太工程师气质了，要更有设计感"* / *"这个按钮没有点击欲望"* / *"颜色组合让人感觉不信任这个产品"*
+> Claude will interpret the intent and figure out the fix.
 
-### Let Claude apply your changes
+4. Click **保存反馈** when done
 
-Back in Claude Code, just say:
+### Apply changes
+
+In Claude Code, say:
 
 > 反馈好了
 
-Claude will read your feedback, apply all text edits to the source file, and summarize the sticky note annotations that need your design decisions.
+Claude applies all text edits automatically, then interprets each sticky note — making direct fixes where the intent is clear, and asking you only when a design decision is genuinely ambiguous.
 
 ### Exit
 
-Click **清空并退出** in the panel, or open the extension popup and click **退出审稿**.
+Click **清空并退出** in the panel, or open the extension popup → **退出审稿**.
 
 ---
 
-## Data
+## Feedback format (under the hood)
 
-Feedback is saved to `.design_feedback.json` in your working directory. Sessions accumulate — each review adds a new entry so you have a full history. Claude never deletes this file.
+```json
+{
+  "sessions": [{
+    "source_url": "file:///Users/you/project/index.html",
+    "changes": [
+      { "type": "text_edit", "selector": "h1.hero", "original": "旧标题", "modified": "新标题" },
+      { "type": "annotation", "selector": ".pricing-card", "note": "感觉太廉价了，要更有质感" }
+    ]
+  }]
+}
+```
 
 ---
 
 ## Skill triggers
-
-This skill activates when you say things like:
 
 - 反馈好了 / 我反馈好了
 - feedback done / apply my feedback
