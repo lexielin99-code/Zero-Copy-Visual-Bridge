@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Visual Feedback",
+  "name": "Zero-Copy Visual Bridge",
   "version": "1.0",
   "description": "在网页上直接编辑文案、贴便利贴，一键同步反馈给 Claude",
   "permissions": ["activeTab", "scripting"],
