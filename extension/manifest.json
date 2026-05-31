@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Visual Feedback",
+  "version": "1.0",
+  "description": "在网页上直接编辑文案、贴便利贴，一键同步反馈给 Claude",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["<all_urls>", "file:///*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Visual Feedback",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

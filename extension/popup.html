@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --mauve:      #C4B5C8;
+    --mauve-deep: #9B8FA0;
+    --sage:       #A8B89A;
+    --sage-deep:  #7D9870;
+    --rose:       #CEB5B0;
+    --cream:      #F5EFE8;
+    --ink:        #3D3540;
+    --ink-mute:   #8A8190;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    width: 220px;
+    font-family: 'DM Sans', sans-serif;
+    background: linear-gradient(145deg, #F5EFE8 0%, #EDE6F0 55%, #E6EEE9 100%);
+    color: var(--ink);
+    padding: 20px 18px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Decorative blobs */
+  body::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(196,181,212,.35) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; left: -20px;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(168,184,154,.3) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .icon-wrap {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--mauve) 0%, var(--sage) 100%);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(155,143,160,.3);
+  }
+  .icon-wrap svg { width: 18px; height: 18px; }
+
+  .title-block { padding-top: 1px; }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: -0.2px;
+    line-height: 1.1;
+  }
+  .subtitle {
+    font-size: 10px;
+    color: var(--ink-mute);
+    font-weight: 300;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, rgba(155,143,160,.3), rgba(125,152,112,.2), transparent);
+    margin-bottom: 14px;
+  }
+
+  #activate {
+    width: 100%;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #C4B5C8 0%, #A8B89A 100%);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: opacity .15s, transform .1s;
+    letter-spacing: 0.1px;
+    box-shadow: 0 3px 12px rgba(155,143,160,.35);
+    position: relative;
+    overflow: hidden;
+  }
+  #activate::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.15) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  #activate:hover { opacity: .9; transform: translateY(-1px); }
+  #activate:active { transform: translateY(0); }
+
+  .btn-icon { font-size: 15px; }
+
+  #status {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--ink-mute);
+    text-align: center;
+    min-height: 14px;
+    font-weight: 300;
+    transition: color .2s;
+  }
+  #status.ok { color: var(--sage-deep); }
+  #status.err {
+    color: #C0756B;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+</style>
+</head>
+<body>
+  <header>
+    <div class="icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+    </div>
+    <div class="title-block">
+      <h1>Visual Feedback</h1>
+      <div class="subtitle">Design Review Tool</div>
+    </div>
+  </header>
+
+  <div class="divider"></div>
+
+  <button id="activate">
+    <span class="btn-icon">✦</span>
+    开始审稿
+  </button>
+
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
