@@ -1,222 +1,241 @@
 (function () {
   'use strict';
 
-  // Prevent double injection
   if (window.__vf__) {
     window.__vf__.toggle();
     return;
   }
 
   const PORT = 3456;
-  const changes = []; // { type:'text_edit', selector, original, modified }
-  const annotations = []; // { id, selector, note }
+  const changes = [];
+  const annotations = [];
   let mode = 'edit';
-  let activeEditEl = null;
   let annIdCounter = 0;
 
   // ─── Styles ───────────────────────────────────────────────────────────────
   const style = document.createElement('style');
-  style.id = '__vf_style__';
+  style.id = 'zcvb-styles';
   style.textContent = `
-    [data-vf-hover] {
-      outline: 2px solid rgba(168,184,154,.85) !important;
-      outline-offset: 3px !important;
-      cursor: text !important;
-    }
-    [data-vf-hover][data-vf-mode="annotate"] {
-      cursor: pointer !important;
-      outline-color: rgba(206,181,176,.9) !important;
-    }
-    [data-vf-editing] {
-      outline: 2px solid rgba(155,143,160,.8) !important;
-      background: rgba(196,181,212,.07) !important;
-    }
-
-    #__vf_panel__ {
+    /* --- 主控制台 --- */
+    #zcvb-panel {
       all: initial;
-      position: fixed !important; top: 20px !important; right: 20px !important;
-      z-index: 2147483647 !important;
-      background: linear-gradient(155deg, #F6F0EC 0%, #EDE6F0 55%, #E8EEE8 100%);
-      color: #3D3540;
-      border-radius: 14px; padding: 0; width: 218px;
-      font: 13px/1.4 'DM Sans', system-ui, -apple-system, sans-serif;
-      box-shadow: 0 6px 28px rgba(100,80,110,.18), 0 1px 3px rgba(100,80,110,.1);
-      border: 1px solid rgba(196,181,212,.4);
-      user-select: none;
-      overflow: hidden;
+      position: fixed !important;
+      bottom: 24px !important;
+      right: 24px !important;
+      width: 280px !important;
+      background: rgba(18, 18, 18, 0.85) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 16px !important;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5) !important;
+      color: #EFEFEF !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif !important;
+      z-index: 999999 !important;
+      padding: 16px !important;
+      box-sizing: border-box !important;
     }
-    #__vf_panel__ * { box-sizing: border-box; }
+    #zcvb-panel * { box-sizing: border-box; }
 
-    #__vf_panel__ .vf-header {
-      background: linear-gradient(135deg, rgba(196,181,212,.5) 0%, rgba(168,184,154,.4) 100%);
-      padding: 12px 14px 11px;
-      display: flex; align-items: center; justify-content: space-between;
-      border-bottom: 1px solid rgba(196,181,212,.25);
-      position: relative;
+    .zcvb-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      font-size: 14px;
+      font-weight: 600;
     }
-    #__vf_panel__ .vf-header::after {
-      content: '';
-      position: absolute; inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,.25) 0%, transparent 60%);
-      pointer-events: none;
-    }
-    #__vf_panel__ h3 {
-      margin: 0; font-size: 12.5px; font-weight: 500;
-      color: #3D3540; letter-spacing: .2px;
-      display: flex; align-items: center; gap: 6px;
-    }
-    #__vf_panel__ h3 .vf-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: linear-gradient(135deg, #C4B5C8, #A8B89A);
+    .zcvb-status-dot {
+      width: 8px; height: 8px;
+      background: #10B981;
+      border-radius: 50%;
+      margin-right: 8px;
       flex-shrink: 0;
     }
-    #__vf_panel__ .vf-body { padding: 12px 14px 14px; }
-    #__vf_panel__ .vf-modes { display: flex; gap: 5px; margin-bottom: 11px; }
-    #__vf_panel__ .vf-btn {
-      flex: 1; padding: 6px 8px;
-      border: 1px solid rgba(155,143,160,.25);
-      border-radius: 8px;
-      background: rgba(255,255,255,.55);
-      color: #8A8190; cursor: pointer; font-size: 11.5px;
-      font-family: inherit; font-weight: 400;
-      transition: all .15s;
-    }
-    #__vf_panel__ .vf-btn.on {
-      background: linear-gradient(135deg, #C4B5C8 0%, #A8B89A 100%);
-      border-color: transparent; color: #fff;
-      box-shadow: 0 2px 8px rgba(155,143,160,.3);
-    }
-    #__vf_panel__ .vf-btn:hover:not(.on) {
-      background: rgba(255,255,255,.8);
-      border-color: rgba(155,143,160,.4);
-      color: #5A5060;
-    }
-    #__vf_panel__ .vf-stats {
-      font-size: 11px; margin-bottom: 11px; line-height: 1.9;
-      color: #9A8FA0;
-    }
-    #__vf_panel__ .vf-stats b { color: #5A5060; font-weight: 500; }
 
-    #__vf_panel__ #__vf_save__ {
-      width: 100%; padding: 8.5px;
-      background: linear-gradient(135deg, #BFB0C4 0%, #A8B89A 100%);
-      border: none; border-radius: 9px;
-      color: #fff; font-size: 12.5px; font-weight: 500;
-      cursor: pointer; font-family: inherit;
-      box-shadow: 0 2px 10px rgba(155,143,160,.3);
-      transition: opacity .15s, transform .1s;
-      position: relative; overflow: hidden;
+    /* --- 模式切换 --- */
+    .zcvb-tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 4px;
+      margin-bottom: 16px;
     }
-    #__vf_panel__ #__vf_save__::after {
-      content: '';
-      position: absolute; inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,.2) 0%, transparent 55%);
+    .zcvb-tab {
+      flex: 1; text-align: center;
+      padding: 6px 0; font-size: 12px;
+      cursor: pointer; border-radius: 6px;
+      color: #888; transition: all 0.2s;
+      user-select: none;
+    }
+    .zcvb-tab.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff; font-weight: 500;
+    }
+
+    /* --- 数据统计 --- */
+    .zcvb-stats {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: #aaa;
+      margin-bottom: 16px; padding: 0 4px;
+    }
+    .zcvb-stats .stat-label { margin-right: 4px; }
+    .zcvb-stats .stat-count {
+      font-family: monospace;
+      color: #FF5E00; font-weight: 600; font-size: 14px;
+    }
+
+    /* --- 按钮 --- */
+    .zcvb-btn-primary {
+      width: 100%; background: #FF5E00; color: #FFFFFF;
+      border: none; padding: 10px; border-radius: 8px;
+      font-weight: 600; font-size: 13px; cursor: pointer;
+      transition: all 0.2s; margin-bottom: 12px;
+      font-family: inherit;
+    }
+    .zcvb-btn-primary:hover:not(:disabled) {
+      box-shadow: 0 0 16px rgba(255, 94, 0, 0.4);
+      filter: brightness(1.1);
+    }
+    .zcvb-btn-primary:disabled {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.25);
+      cursor: default;
+    }
+    .zcvb-btn-secondary {
+      width: 100%; background: transparent;
+      color: #FF453A; border: none;
+      font-size: 12px; cursor: pointer; font-family: inherit;
+    }
+    .zcvb-btn-secondary:hover { text-decoration: underline; }
+
+    /* --- 网页元素交互 --- */
+    .zcvb-hover-outline {
+      outline: 2px dashed #FF5E00 !important;
+      outline-offset: 6px !important;
+      background: rgba(255, 94, 0, 0.08) !important;
+      cursor: crosshair !important;
+      border-radius: 4px;
+    }
+    .zcvb-tooltip {
+      position: absolute;
+      background: #1A1A1A; border: 1px solid #333;
+      border-radius: 8px; padding: 8px 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      display: flex; align-items: center;
+      z-index: 999998;
+    }
+    .zcvb-tooltip input {
+      background: transparent; border: none;
+      border-bottom: 1px solid #FF5E00;
+      color: #fff; font-size: 13px;
+      padding: 4px; outline: none; width: 180px;
+    }
+    .zcvb-tooltip button {
+      background: #FF5E00; color: #FFFFFF; border: none;
+      width: 24px; height: 24px; border-radius: 4px;
+      margin-left: 8px; font-weight: bold; cursor: pointer;
+    }
+    .zcvb-pin-marker {
+      position: absolute;
+      width: 12px; height: 12px;
+      background: #FF5E00; border-radius: 50%;
+      border: 2px solid #000;
+      box-shadow: 0 0 12px rgba(255, 94, 0, 0.4);
+      z-index: 999997;
+      transform: translate(-50%, -50%);
       pointer-events: none;
     }
-    #__vf_panel__ #__vf_save__:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
-    #__vf_panel__ #__vf_save__:disabled {
-      background: rgba(155,143,160,.2); color: rgba(90,80,96,.35);
-      cursor: default; box-shadow: none;
-    }
-    #__vf_panel__ #__vf_exit__ {
-      width: 100%; padding: 6px; margin-top: 6px;
-      background: none; border: 1px solid rgba(155,143,160,.25);
-      border-radius: 8px; color: #9A8FA0; font-size: 11.5px;
-      cursor: pointer; font-family: inherit;
-      transition: all .15s;
-    }
-    #__vf_panel__ #__vf_exit__:hover {
-      border-color: rgba(192,80,80,.4); color: #C05050;
-      background: rgba(192,80,80,.05);
-    }
-    #__vf_panel__ #__vf_close__ {
-      background: none; border: none;
-      color: rgba(90,80,96,.45); cursor: pointer; font-size: 17px;
-      padding: 0; line-height: 1; z-index: 1; position: relative;
-    }
-    #__vf_panel__ #__vf_close__:hover { color: rgba(90,80,96,.85); }
 
+    /* --- 便利贴 --- */
     .vf-sticky {
       position: absolute !important; z-index: 2147483646 !important;
-      background: linear-gradient(160deg, #FEFAF2 0%, #F9F3E8 100%);
-      border: 1px solid rgba(220,195,160,.55);
+      background: rgba(22, 22, 22, 0.92);
+      border: 1px solid rgba(255, 94, 0, 0.3);
       border-radius: 10px; width: 215px;
-      box-shadow: 3px 6px 20px rgba(120,90,60,.14), 0 1px 3px rgba(120,90,60,.08);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 12px rgba(255,94,0,0.1);
       font: 13px/1.4 system-ui, sans-serif;
+      backdrop-filter: blur(8px);
     }
     .vf-sticky-hd {
-      background: linear-gradient(135deg, #EDD9A3 0%, #E8C98A 100%);
+      background: rgba(255, 94, 0, 0.15);
+      border-bottom: 1px solid rgba(255, 94, 0, 0.25);
       border-radius: 9px 9px 0 0; padding: 6px 10px;
       display: flex; justify-content: space-between; align-items: center;
-      font-size: 10.5px; font-weight: 600; color: #6B4F20;
+      font-size: 10.5px; font-weight: 600; color: #FF5E00;
       cursor: move; letter-spacing: .2px;
     }
     .vf-sticky textarea {
       display: block; width: 100%; border: none;
       background: transparent;
-      padding: 8px 11px 10px; resize: none; font-size: 12px; color: #4A3820;
-      line-height: 1.6; outline: none; font-family: system-ui, sans-serif;
+      padding: 8px 11px 10px; resize: none;
+      font-size: 12px; color: #EFEFEF;
+      line-height: 1.6; outline: none;
+      font-family: system-ui, sans-serif;
     }
     .vf-sticky-del {
       background: none; border: none; cursor: pointer;
-      color: rgba(107,79,32,.5); font-size: 16px; padding: 0; line-height: 1;
+      color: rgba(255, 94, 0, 0.5); font-size: 16px;
+      padding: 0; line-height: 1;
     }
-    .vf-sticky-del:hover { color: #C05050; }
+    .vf-sticky-del:hover { color: #FF453A; }
 
+    /* --- Toast --- */
     .__vf_toast__ {
       position: fixed !important; bottom: 26px !important; right: 26px !important;
       z-index: 2147483647 !important;
-      background: linear-gradient(135deg, #F0EBF4 0%, #EBF0EB 100%);
-      color: #3D3540; padding: 10px 16px; border-radius: 10px;
+      background: rgba(22, 22, 22, 0.92);
+      color: #EFEFEF; padding: 10px 16px; border-radius: 10px;
       font: 12.5px system-ui, sans-serif;
-      box-shadow: 0 4px 20px rgba(100,80,110,.18);
-      border: 1px solid rgba(196,181,212,.4);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255, 94, 0, 0.3);
       transition: opacity .3s; pointer-events: none;
+      backdrop-filter: blur(8px);
     }
   `;
   document.head.appendChild(style);
 
   // ─── Panel ────────────────────────────────────────────────────────────────
   const panel = document.createElement('div');
-  panel.id = '__vf_panel__';
+  panel.id = 'zcvb-panel';
   panel.innerHTML = `
-    <div class="vf-header">
-      <h3><span class="vf-dot"></span>Visual Feedback</h3>
-      <button id="__vf_close__">×</button>
+    <div class="zcvb-header">
+      <div class="zcvb-status-dot"></div>
+      <span id="zcvb-title">Zero-Copy Visual Bridge</span>
     </div>
-    <div class="vf-body">
-      <div class="vf-modes">
-        <button class="vf-btn on" id="__vf_edit_btn__">✦ 编辑文案</button>
-        <button class="vf-btn" id="__vf_ann_btn__">◈ 备注</button>
-      </div>
-      <div class="vf-stats">
-        文案修改：<b id="__vf_ec__">0</b> 处<br>
-        便利贴备注：<b id="__vf_ac__">0</b> 条
-      </div>
-      <button id="__vf_save__" disabled>保存反馈</button>
-      <button id="__vf_exit__">清空并退出</button>
+
+    <div class="zcvb-tabs">
+      <div class="zcvb-tab active" id="zcvb-mode-text">✦ 编辑文案</div>
+      <div class="zcvb-tab" id="zcvb-mode-note">◈ 备注</div>
     </div>
+
+    <div class="zcvb-stats">
+      <div><span class="stat-label">文案修改</span><span id="zcvb-count-text" class="stat-count">0 处</span></div>
+      <div><span class="stat-label">便利贴备注</span><span id="zcvb-count-note" class="stat-count">0 条</span></div>
+    </div>
+
+    <button class="zcvb-btn-primary" id="zcvb-btn-save" disabled>保存反馈</button>
+    <button class="zcvb-btn-secondary" id="zcvb-btn-exit">清空并退出</button>
   `;
   document.body.appendChild(panel);
 
-  const saveBtn = panel.querySelector('#__vf_save__');
+  const saveBtn = panel.querySelector('#zcvb-btn-save');
 
   function updateStats() {
-    panel.querySelector('#__vf_ec__').textContent = changes.length;
-    panel.querySelector('#__vf_ac__').textContent = annotations.length;
+    panel.querySelector('#zcvb-count-text').textContent = changes.length + ' 处';
+    panel.querySelector('#zcvb-count-note').textContent = annotations.length + ' 条';
     saveBtn.disabled = changes.length + annotations.length === 0;
   }
 
   // Mode switch
-  panel.querySelector('#__vf_edit_btn__').addEventListener('click', () => setMode('edit'));
-  panel.querySelector('#__vf_ann_btn__').addEventListener('click', () => setMode('annotate'));
-  panel.querySelector('#__vf_close__').addEventListener('click', cleanup);
-  panel.querySelector('#__vf_exit__').addEventListener('click', cleanup);
+  panel.querySelector('#zcvb-mode-text').addEventListener('click', () => setMode('edit'));
+  panel.querySelector('#zcvb-mode-note').addEventListener('click', () => setMode('annotate'));
+  panel.querySelector('#zcvb-btn-exit').addEventListener('click', cleanup);
 
   function setMode(m) {
     mode = m;
-    panel.querySelector('#__vf_edit_btn__').classList.toggle('on', m === 'edit');
-    panel.querySelector('#__vf_ann_btn__').classList.toggle('on', m === 'annotate');
+    panel.querySelector('#zcvb-mode-text').classList.toggle('active', m === 'edit');
+    panel.querySelector('#zcvb-mode-note').classList.toggle('active', m === 'annotate');
+    if (activeTooltip) dismissTooltip();
   }
 
   // ─── CSS selector generator ───────────────────────────────────────────────
@@ -227,7 +246,7 @@
     while (cur && cur !== document.documentElement && cur !== document.body) {
       let seg = cur.tagName.toLowerCase();
       const classes = Array.from(cur.classList)
-        .filter(c => !c.startsWith('vf-') && c !== '__vf_hover__')
+        .filter(c => !c.startsWith('vf-') && !c.startsWith('zcvb-'))
         .slice(0, 2);
       if (classes.length) seg += '.' + classes.map(c => CSS.escape(c)).join('.');
       const siblings = cur.parentElement
@@ -240,80 +259,82 @@
     return parts.join(' > ');
   }
 
-  // ─── Event handlers (named so cleanup can removeEventListener) ───────────
+  // ─── Event handlers ───────────────────────────────────────────────────────
   let hoveredEl = null;
+  let activeTooltip = null;
 
   const _h = {
     mouseover: e => {
       const t = e.target;
-      if (t.closest('#__vf_panel__') || t.closest('.vf-sticky')) return;
-      if (hoveredEl) {
-        hoveredEl.removeAttribute('data-vf-hover');
-        hoveredEl.removeAttribute('data-vf-mode');
-      }
+      if (t.closest('#zcvb-panel') || t.closest('.vf-sticky') || t.closest('.zcvb-tooltip')) return;
+      if (hoveredEl) hoveredEl.classList.remove('zcvb-hover-outline');
       hoveredEl = t;
-      t.setAttribute('data-vf-hover', '');
-      if (mode === 'annotate') t.setAttribute('data-vf-mode', 'annotate');
+      t.classList.add('zcvb-hover-outline');
     },
     mouseout: e => {
       if (e.target === hoveredEl) {
-        hoveredEl.removeAttribute('data-vf-hover');
-        hoveredEl.removeAttribute('data-vf-mode');
+        hoveredEl.classList.remove('zcvb-hover-outline');
         hoveredEl = null;
       }
     },
     click: e => {
-      if (e.target.closest('#__vf_panel__') || e.target.closest('.vf-sticky')) return;
+      if (e.target.closest('#zcvb-panel') || e.target.closest('.vf-sticky') || e.target.closest('.zcvb-tooltip')) return;
       e.preventDefault();
       e.stopPropagation();
-      if (mode === 'edit') startEdit(e.target);
+      if (mode === 'edit') showEditTooltip(e.target);
       else addSticky(e.target);
     },
     keydown: e => {
-      if (e.key === 'Escape' && activeEditEl) commitEdit();
-    },
-    blur: e => {
-      if (e.target === activeEditEl) setTimeout(commitEdit, 50);
+      if (e.key === 'Escape' && activeTooltip) dismissTooltip();
     }
   };
 
   document.addEventListener('mouseover', _h.mouseover, true);
   document.addEventListener('mouseout',  _h.mouseout,  true);
   document.addEventListener('click',     _h.click,     true);
+  document.addEventListener('keydown',   _h.keydown);
 
-  // ─── Text edit ────────────────────────────────────────────────────────────
-  function startEdit(el) {
-    if (activeEditEl) commitEdit();
-    activeEditEl = el;
-    el.dataset.vfOriginal = el.textContent;
-    el.dataset.vfSelector = getSelector(el);
-    el.setAttribute('contenteditable', 'true');
-    el.setAttribute('data-vf-editing', '');
-    el.focus();
+  // ─── Edit tooltip ─────────────────────────────────────────────────────────
+  function showEditTooltip(el) {
+    if (activeTooltip) dismissTooltip();
+
+    const rect = el.getBoundingClientRect();
+    const original = el.textContent.trim();
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'zcvb-tooltip';
+    tooltip.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
+    tooltip.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 248) + 'px';
+    tooltip.innerHTML = `<input type="text" value="${original.replace(/"/g, '&quot;')}"><button title="确认">✓</button>`;
+    document.body.appendChild(tooltip);
+    activeTooltip = tooltip;
+
+    const input = tooltip.querySelector('input');
+    input.focus();
+    input.select();
+
+    function commit() {
+      const modified = input.value.trim();
+      dismissTooltip();
+      if (!modified || modified === original) return;
+      el.textContent = modified;
+      const selector = getSelector(el);
+      const idx = changes.findIndex(c => c.selector === selector);
+      if (idx > -1) changes.splice(idx, 1);
+      changes.push({ type: 'text_edit', selector, original, modified });
+      updateStats();
+    }
+
+    tooltip.querySelector('button').addEventListener('click', commit);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') dismissTooltip();
+    });
   }
 
-  function commitEdit() {
-    if (!activeEditEl) return;
-    const el = activeEditEl;
-    activeEditEl = null;
-    const original = el.dataset.vfOriginal;
-    const modified = el.textContent;
-    el.removeAttribute('contenteditable');
-    el.removeAttribute('data-vf-editing');
-    delete el.dataset.vfOriginal;
-
-    if (modified === original) return;
-    const selector = el.dataset.vfSelector;
-    delete el.dataset.vfSelector;
-
-    const idx = changes.findIndex(c => c.selector === selector);
-    if (idx > -1) changes.splice(idx, 1);
-    changes.push({ type: 'text_edit', selector, original, modified });
-    updateStats();
+  function dismissTooltip() {
+    if (activeTooltip) { activeTooltip.remove(); activeTooltip = null; }
   }
-
-  document.addEventListener('keydown', _h.keydown);
-  document.addEventListener('blur',    _h.blur, true);
 
   // ─── Sticky notes ─────────────────────────────────────────────────────────
   function addSticky(el) {
@@ -321,11 +342,19 @@
     const selector = getSelector(el);
     const rect = el.getBoundingClientRect();
 
+    // Orange pin marker centered on clicked element
+    const pin = document.createElement('div');
+    pin.className = 'zcvb-pin-marker';
+    pin.dataset.vfPinId = id;
+    pin.style.top  = (rect.top  + window.scrollY + rect.height / 2) + 'px';
+    pin.style.left = (rect.left + window.scrollX + rect.width  / 2) + 'px';
+    document.body.appendChild(pin);
+
     const sticky = document.createElement('div');
     sticky.className = 'vf-sticky';
     sticky.dataset.vfId = id;
     sticky.dataset.vfSelector = selector;
-    sticky.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+    sticky.style.top  = (rect.bottom + window.scrollY + 8) + 'px';
     sticky.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 230) + 'px';
     sticky.innerHTML = `
       <div class="vf-sticky-hd">
@@ -339,6 +368,7 @@
 
     sticky.querySelector('.vf-sticky-del').addEventListener('click', () => {
       sticky.remove();
+      pin.remove();
       const i = annotations.findIndex(a => a.id === id);
       if (i > -1) annotations.splice(i, 1);
       updateStats();
@@ -361,7 +391,7 @@
       const ox = e.clientX - el.offsetLeft, oy = e.clientY - el.offsetTop;
       const move = e => {
         el.style.left = (e.clientX - ox) + 'px';
-        el.style.top = (e.clientY - oy) + 'px';
+        el.style.top  = (e.clientY - oy) + 'px';
       };
       const up = () => {
         document.removeEventListener('mousemove', move);
@@ -374,9 +404,8 @@
 
   // ─── Save ─────────────────────────────────────────────────────────────────
   saveBtn.addEventListener('click', async () => {
-    if (activeEditEl) commitEdit();
+    if (activeTooltip) dismissTooltip();
 
-    // Collect any sticky note text not yet captured via 'input' event
     document.querySelectorAll('.vf-sticky').forEach(s => {
       const id = parseInt(s.dataset.vfId);
       const note = s.querySelector('textarea').value.trim();
@@ -411,7 +440,7 @@
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       toast('✅ 反馈已保存！告诉 Claude "反馈好了" 即可');
       saveBtn.textContent = '✓ 已保存';
-      saveBtn.style.background = '#555';
+      saveBtn.style.background = '#333';
     } catch {
       toast('❌ receiver 未运行，请先执行：node receiver.js');
       saveBtn.disabled = false;
@@ -437,18 +466,12 @@
     document.removeEventListener('mouseout',  _h.mouseout,  true);
     document.removeEventListener('click',     _h.click,     true);
     document.removeEventListener('keydown',   _h.keydown);
-    document.removeEventListener('blur',      _h.blur,      true);
     panel.remove();
     style.remove();
+    if (activeTooltip) activeTooltip.remove();
     document.querySelectorAll('.vf-sticky').forEach(s => s.remove());
-    if (hoveredEl) {
-      hoveredEl.removeAttribute('data-vf-hover');
-      hoveredEl.removeAttribute('data-vf-mode');
-    }
-    if (activeEditEl) {
-      activeEditEl.removeAttribute('contenteditable');
-      activeEditEl.removeAttribute('data-vf-editing');
-    }
+    document.querySelectorAll('.zcvb-pin-marker').forEach(p => p.remove());
+    if (hoveredEl) hoveredEl.classList.remove('zcvb-hover-outline');
     delete window.__vf__;
   }
 
@@ -457,5 +480,5 @@
     toggle: () => { panel.style.display = panel.style.display === 'none' ? '' : 'none'; }
   };
 
-  toast('🎨 Visual Feedback 已激活');
+  toast('🎨 Zero-Copy Visual Bridge 已激活');
 })();
