@@ -177,6 +177,19 @@
     }
     .vf-beacon-tip button:hover { filter: brightness(1.1); }
 
+    .vf-beacon-label {
+      position: absolute !important; z-index: 2147483647 !important;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.1);
+      border-radius: 8px; padding: 6px 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.06);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12px; color: #333; line-height: 1.5;
+      max-width: 220px; white-space: pre-wrap;
+      pointer-events: none;
+      display: none;
+    }
+
     .__vf_toast__ {
       position: fixed !important; bottom: 26px !important; right: 26px !important;
       z-index: 2147483647 !important;
@@ -359,6 +372,8 @@
     const input = tip.querySelector('input');
     input.focus();
 
+    let label = null;
+
     function commit() {
       const note = input.value.trim();
       tip.remove();
@@ -368,6 +383,17 @@
       if (existing) existing.note = note;
       else annotations.push({ id, selector, note });
       updateStats();
+
+      // Hover label shows saved note
+      const labelX = Math.min(x + 14, window.innerWidth + window.scrollX - 240);
+      label = document.createElement('div');
+      label.className = 'vf-beacon-label';
+      label.textContent = note;
+      label.style.left = labelX + 'px';
+      label.style.top  = (y - 18) + 'px';
+      document.body.appendChild(label);
+      beacon.addEventListener('mouseenter', () => { label.style.display = 'block'; });
+      beacon.addEventListener('mouseleave', () => { label.style.display = 'none'; });
     }
 
     tip.querySelector('button').addEventListener('click', commit);
@@ -379,6 +405,7 @@
     // Right-click beacon to delete
     beacon.addEventListener('contextmenu', e => {
       e.preventDefault();
+      if (label) label.remove();
       beacon.remove();
       const i = annotations.findIndex(a => a.id === id);
       if (i > -1) annotations.splice(i, 1);
@@ -456,6 +483,7 @@
     style.remove();
     document.querySelectorAll('.vf-beacon').forEach(b => b.remove());
     document.querySelectorAll('.vf-beacon-tip').forEach(t => t.remove());
+    document.querySelectorAll('.vf-beacon-label').forEach(l => l.remove());
     if (hoveredEl) {
       hoveredEl.removeAttribute('data-vf-hover');
       hoveredEl.removeAttribute('data-vf-mode');
