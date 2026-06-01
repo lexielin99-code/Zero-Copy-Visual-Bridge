@@ -136,32 +136,46 @@
     }
     #__vf_panel__ #__vf_close__:hover { color: rgba(90,80,96,.85); }
 
-    .vf-sticky {
+    .vf-beacon {
       position: absolute !important; z-index: 2147483646 !important;
-      background: linear-gradient(160deg, #FEFAF2 0%, #F9F3E8 100%);
-      border: 1px solid rgba(220,195,160,.55);
-      border-radius: 10px; width: 215px;
-      box-shadow: 3px 6px 20px rgba(120,90,60,.14), 0 1px 3px rgba(120,90,60,.08);
-      font: 13px/1.4 system-ui, sans-serif;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #4878F7;
+      border: 1.5px solid #fff;
+      box-shadow: 0 0 0 1px rgba(72,120,247,.2), 0 2px 8px rgba(72,120,247,.45);
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
     }
-    .vf-sticky-hd {
-      background: linear-gradient(135deg, #EDD9A3 0%, #E8C98A 100%);
-      border-radius: 9px 9px 0 0; padding: 6px 10px;
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 10.5px; font-weight: 600; color: #6B4F20;
-      cursor: move; letter-spacing: .2px;
+    .vf-beacon:hover {
+      transform: translate(-50%, -50%) scale(1.6);
+      box-shadow: 0 0 0 3px rgba(72,120,247,.18), 0 2px 10px rgba(72,120,247,.5);
     }
-    .vf-sticky textarea {
-      display: block; width: 100%; border: none;
-      background: transparent;
-      padding: 8px 11px 10px; resize: none; font-size: 12px; color: #4A3820;
-      line-height: 1.6; outline: none; font-family: system-ui, sans-serif;
+    .vf-beacon-tip {
+      position: absolute !important; z-index: 2147483647 !important;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.1);
+      border-radius: 10px; padding: 8px 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.06);
+      display: flex; align-items: center; gap: 8px;
+      min-width: 200px;
+      font-family: system-ui, -apple-system, sans-serif;
     }
-    .vf-sticky-del {
-      background: none; border: none; cursor: pointer;
-      color: rgba(107,79,32,.5); font-size: 16px; padding: 0; line-height: 1;
+    .vf-beacon-tip input {
+      flex: 1; border: none;
+      border-bottom: 1px solid #e4e4e4;
+      outline: none; font-size: 12px;
+      padding: 3px 0; background: transparent;
+      color: #333; font-family: inherit;
     }
-    .vf-sticky-del:hover { color: #C05050; }
+    .vf-beacon-tip input::placeholder { color: #c0c0c0; }
+    .vf-beacon-tip button {
+      background: #4878F7; color: #fff; border: none;
+      width: 22px; height: 22px; border-radius: 6px;
+      cursor: pointer; font-size: 14px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; padding: 0;
+    }
+    .vf-beacon-tip button:hover { filter: brightness(1.1); }
 
     .__vf_toast__ {
       position: fixed !important; bottom: 26px !important; right: 26px !important;
@@ -246,7 +260,7 @@
   const _h = {
     mouseover: e => {
       const t = e.target;
-      if (t.closest('#__vf_panel__') || t.closest('.vf-sticky')) return;
+      if (t.closest('#__vf_panel__') || t.closest('.vf-beacon') || t.closest('.vf-beacon-tip')) return;
       if (hoveredEl) {
         hoveredEl.removeAttribute('data-vf-hover');
         hoveredEl.removeAttribute('data-vf-mode');
@@ -263,11 +277,11 @@
       }
     },
     click: e => {
-      if (e.target.closest('#__vf_panel__') || e.target.closest('.vf-sticky')) return;
+      if (e.target.closest('#__vf_panel__') || e.target.closest('.vf-beacon') || e.target.closest('.vf-beacon-tip')) return;
       e.preventDefault();
       e.stopPropagation();
       if (mode === 'edit') startEdit(e.target);
-      else addSticky(e.target);
+      else addSticky(e.target, e);
     },
     keydown: e => {
       if (e.key === 'Escape' && activeEditEl) commitEdit();
@@ -315,60 +329,60 @@
   document.addEventListener('keydown', _h.keydown);
   document.addEventListener('blur',    _h.blur, true);
 
-  // ─── Sticky notes ─────────────────────────────────────────────────────────
-  function addSticky(el) {
+  // ─── Beacon + tooltip notes ───────────────────────────────────────────────
+  function addSticky(el, evt) {
     const id = ++annIdCounter;
     const selector = getSelector(el);
-    const rect = el.getBoundingClientRect();
 
-    const sticky = document.createElement('div');
-    sticky.className = 'vf-sticky';
-    sticky.dataset.vfId = id;
-    sticky.dataset.vfSelector = selector;
-    sticky.style.top = (rect.bottom + window.scrollY + 8) + 'px';
-    sticky.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 230) + 'px';
-    sticky.innerHTML = `
-      <div class="vf-sticky-hd">
-        📌 备注
-        <button class="vf-sticky-del">×</button>
-      </div>
-      <textarea rows="3" placeholder="写下你的意见..."></textarea>
-    `;
-    document.body.appendChild(sticky);
-    sticky.querySelector('textarea').focus();
+    // Beacon anchored at exact click position
+    const x = (evt ? evt.clientX : el.getBoundingClientRect().left) + window.scrollX;
+    const y = (evt ? evt.clientY : el.getBoundingClientRect().top)  + window.scrollY;
 
-    sticky.querySelector('.vf-sticky-del').addEventListener('click', () => {
-      sticky.remove();
-      const i = annotations.findIndex(a => a.id === id);
-      if (i > -1) annotations.splice(i, 1);
-      updateStats();
-    });
+    const beacon = document.createElement('div');
+    beacon.className = 'vf-beacon';
+    beacon.dataset.vfId = id;
+    beacon.dataset.vfSelector = selector;
+    beacon.dataset.vfNote = '';
+    beacon.style.left = x + 'px';
+    beacon.style.top  = y + 'px';
+    document.body.appendChild(beacon);
 
-    sticky.querySelector('textarea').addEventListener('input', () => {
-      const note = sticky.querySelector('textarea').value.trim();
+    // Input tooltip appears next to beacon
+    const tipX = Math.min(x + 14, window.innerWidth + window.scrollX - 230);
+    const tip = document.createElement('div');
+    tip.className = 'vf-beacon-tip';
+    tip.style.left = tipX + 'px';
+    tip.style.top  = (y - 18) + 'px';
+    tip.innerHTML = `<input type="text" placeholder="写下你的意见..."><button title="确认">↵</button>`;
+    document.body.appendChild(tip);
+
+    const input = tip.querySelector('input');
+    input.focus();
+
+    function commit() {
+      const note = input.value.trim();
+      tip.remove();
+      if (!note) { beacon.remove(); return; }
+      beacon.dataset.vfNote = note;
       const existing = annotations.find(a => a.id === id);
       if (existing) existing.note = note;
       else annotations.push({ id, selector, note });
       updateStats();
+    }
+
+    tip.querySelector('button').addEventListener('click', commit);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { tip.remove(); beacon.remove(); }
     });
 
-    makeDraggable(sticky.querySelector('.vf-sticky-hd'), sticky);
-  }
-
-  function makeDraggable(handle, el) {
-    handle.addEventListener('mousedown', e => {
+    // Right-click beacon to delete
+    beacon.addEventListener('contextmenu', e => {
       e.preventDefault();
-      const ox = e.clientX - el.offsetLeft, oy = e.clientY - el.offsetTop;
-      const move = e => {
-        el.style.left = (e.clientX - ox) + 'px';
-        el.style.top = (e.clientY - oy) + 'px';
-      };
-      const up = () => {
-        document.removeEventListener('mousemove', move);
-        document.removeEventListener('mouseup', up);
-      };
-      document.addEventListener('mousemove', move);
-      document.addEventListener('mouseup', up);
+      beacon.remove();
+      const i = annotations.findIndex(a => a.id === id);
+      if (i > -1) annotations.splice(i, 1);
+      updateStats();
     });
   }
 
@@ -376,11 +390,11 @@
   saveBtn.addEventListener('click', async () => {
     if (activeEditEl) commitEdit();
 
-    // Collect any sticky note text not yet captured via 'input' event
-    document.querySelectorAll('.vf-sticky').forEach(s => {
-      const id = parseInt(s.dataset.vfId);
-      const note = s.querySelector('textarea').value.trim();
-      const selector = s.dataset.vfSelector;
+    // Sync any beacon notes not yet in annotations array
+    document.querySelectorAll('.vf-beacon').forEach(b => {
+      const id = parseInt(b.dataset.vfId);
+      const note = (b.dataset.vfNote || '').trim();
+      const selector = b.dataset.vfSelector;
       if (!note) return;
       const existing = annotations.find(a => a.id === id);
       if (existing) { existing.note = note; existing.selector = selector; }
@@ -440,7 +454,8 @@
     document.removeEventListener('blur',      _h.blur,      true);
     panel.remove();
     style.remove();
-    document.querySelectorAll('.vf-sticky').forEach(s => s.remove());
+    document.querySelectorAll('.vf-beacon').forEach(b => b.remove());
+    document.querySelectorAll('.vf-beacon-tip').forEach(t => t.remove());
     if (hoveredEl) {
       hoveredEl.removeAttribute('data-vf-hover');
       hoveredEl.removeAttribute('data-vf-mode');
